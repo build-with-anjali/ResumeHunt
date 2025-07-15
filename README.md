@@ -10,6 +10,7 @@ A Chrome extension that automatically detects and highlights LinkedIn profiles w
 
 - 🔍 **Automatic Detection**: Scans LinkedIn search results for profiles with resumes
 - 📄 **Visual Indicators**: Green badges for profiles with resumes, grey for those without
+- 🖱️ **Click to Open**: Click green resume icons to open profiles in new tabs
 - ⚡ **Real-time Updates**: Checks profiles as you scroll and browse
 - 🎛️ **Customizable Settings**: Adjust check delays and concurrent limits
 - 💾 **Smart Caching**: Remembers previously checked profiles
@@ -49,11 +50,16 @@ A Chrome extension that automatically detects and highlights LinkedIn profiles w
    - ❌ **Grey badge**: No resume found
    - 🔄 **Orange badge**: Currently checking the profile
 
-5. **Use settings**: Click the extension icon to:
-   - Enable/disable the extension
-   - Adjust check delays
-   - View statistics
-   - Clear cache or refresh checks
+5. **Click to view resumes**: Click on any green 📄 resume icon to:
+   - Open the profile in a new tab
+   - Navigate directly to the resume/documents section
+   - Access their uploaded resume or CV files
+
+6. **Manage settings**: Click the extension icon to:
+   - Enable/disable automatic checking
+   - Adjust check delays (minimum 2 seconds for safety)
+   - Set concurrent check limits
+   - View statistics and clear cache
 
 ## Settings
 
