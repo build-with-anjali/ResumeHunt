@@ -248,34 +248,86 @@
         console.log(`LinkedIn Resume Detector: Processing profile ${profileId}`);
         
         if (this.checkedProfiles.has(profileId)) {
-          this.updateCardIndicator(card, this.resumeCache.get(profileId));
+          console.log('LinkedIn Resume Detector: Profile already checked');
+          return;
+        }
+
+        this.checkedProfiles.add(profileId);
+        
+        // Check cache first
+        if (this.resumeCache.has(profileId)) {
+          const cached = this.resumeCache.get(profileId);
+          this.updateCardIndicator(card, cached);
           return;
         }
 
         // Add loading indicator
         this.addLoadingIndicator(card);
 
-        // Check if profile has resume
+        // Wait for the configured delay
+        await new Promise(resolve => setTimeout(resolve, this.settings.delay));
+
+        // Check for resume with enhanced algorithm
         const hasResume = await this.checkProfileForResume(profileUrl);
         
-        // Cache result
-        this.checkedProfiles.add(profileId);
-        this.resumeCache.set(profileId, hasResume);
-
-        // Update statistics
-        this.stats.profilesChecked++;
+        // ADDITIONAL VALIDATION: Double-check if positive result
+        let finalResult = hasResume;
         if (hasResume) {
+          console.log('🔍 Positive result detected, performing additional validation...');
+          
+          // Try to access the featured section directly for verification
+          const featuredUrl = profileUrl.endsWith('/') ? 
+            profileUrl + 'details/featured/' : 
+            profileUrl + '/details/featured/';
+          
+          try {
+            const featuredResponse = await fetch(featuredUrl);
+            if (featuredResponse.ok) {
+              const featuredHtml = await featuredResponse.text();
+              
+              // More strict validation on featured section
+              const hasActualDocuments = [
+                /document/i,
+                /\.pdf/i,
+                /resume/i,
+                /cv/i
+              ].some(pattern => pattern.test(featuredHtml));
+              
+              if (!hasActualDocuments) {
+                console.log('⚠️ Featured section validation failed - marking as no resume');
+                finalResult = false;
+              } else {
+                console.log('✅ Featured section validation passed');
+              }
+            }
+          } catch (validationError) {
+            console.log('⚠️ Could not validate featured section, keeping original result');
+            // Keep original result if validation fails
+          }
+        }
+
+        // Remove loading indicator
+        this.removeLoadingIndicator(card);
+
+        // Cache result
+        this.resumeCache.set(profileId, finalResult);
+
+        // Update stats
+        this.stats.profilesChecked++;
+        if (finalResult) {
           this.stats.resumesFound++;
         }
 
-        // Update UI
-        this.updateCardIndicator(card, hasResume);
-        
-        // Add delay to avoid rate limiting
-        await this.delay(this.settings.delay + Math.random() * 500);
-        
+        this.updateCardIndicator(card, finalResult);
+
+        // Update badge
+        chrome.runtime.sendMessage({ 
+          action: 'updateBadge', 
+          count: this.stats.resumesFound 
+        });
+
       } catch (error) {
-        console.error('Error processing profile card:', error);
+        console.error('LinkedIn Resume Detector: Error processing profile card:', error);
         this.removeLoadingIndicator(card);
       }
     }
@@ -287,50 +339,97 @@
 
     async checkProfileForResume(profileUrl) {
       try {
-        const response = await fetch(profileUrl, {
-          credentials: 'include',
-          headers: {
-            'User-Agent': navigator.userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-          }
-        });
-
+        console.log(`Checking profile for resume: ${profileUrl}`);
+        
+        const response = await fetch(profileUrl);
         if (!response.ok) {
-          console.warn('Failed to fetch profile:', response.status);
+          console.log(`Failed to fetch profile: ${response.status}`);
           return false;
         }
 
         const html = await response.text();
         
-        // Enhanced resume detection patterns
-        const resumePatterns = [
-          // Direct resume/CV keywords
-          /resume|cv|curriculum vitae/i,
-          // Document-related indicators
-          /document.*download|download.*document/i,
-          // Featured section with documents
-          /featured.*document|document.*featured/i,
-          // LinkedIn document URLs
-          /linkedin\.com\/document/i,
-          // File attachment indicators
-          /attachment.*pdf|pdf.*attachment/i,
-          // Professional document terms
-          /professional.*document|document.*professional/i
+        // 1. MOST RELIABLE: Check for actual LinkedIn document URLs
+        const linkedinDocumentUrls = [
+          /linkedin\.com\/document\/view\/[0-9]+/i,
+          /linkedin\.com\/document\/[0-9]+/i,
+          /document\/view\/\d+/i
         ];
-
-        // Check for resume indicators
-        const hasResumeIndicators = resumePatterns.some(pattern => pattern.test(html));
         
-        // Look for specific LinkedIn document links
-        const hasDocumentLinks = /href="[^"]*\/document\/[^"]*"/i.test(html);
+        const hasLinkedInDocuments = linkedinDocumentUrls.some(pattern => pattern.test(html));
+        if (hasLinkedInDocuments) {
+          console.log('✅ Found LinkedIn document URLs');
+          return true;
+        }
         
-        // Check for featured items section
-        const hasFeaturedSection = html.includes('pv-featured-item') || html.includes('featured-item');
+        // 2. SPECIFIC: Look for featured section with actual document indicators
+        const featuredSectionExists = html.includes('pv-featured-item') || html.includes('featured-item');
+        if (featuredSectionExists) {
+          // Look for specific document file types in featured section
+          const documentFileTypes = [
+            /\.pdf["'>]/i,
+            /\.doc["'>]/i,
+            /\.docx["'>]/i,
+            /application\/pdf/i,
+            /document.*type.*pdf/i
+          ];
+          
+          const hasDocumentFiles = documentFileTypes.some(pattern => pattern.test(html));
+          if (hasDocumentFiles) {
+            console.log('✅ Found document files in featured section');
+            return true;
+          }
+        }
         
-        // Look for download buttons or links
-        const hasDownloadLinks = /download|view.*document/i.test(html);
-
-        return hasResumeIndicators || hasDocumentLinks || (hasFeaturedSection && hasDownloadLinks);
+        // 3. STRICTER: Check for actual resume/CV uploads (not just mentions)
+        const actualResumeIndicators = [
+          // Look for file names that contain resume/cv
+          /['"](.*resume.*\.pdf|.*cv.*\.pdf|.*curriculum.*vitae.*\.pdf)['"]/i,
+          // Media/document upload indicators
+          /uploaded.*document.*resume|resume.*uploaded.*document/i,
+          // Specific LinkedIn media markers for documents
+          /li-media.*document|document.*li-media/i,
+          // Document viewer indicators
+          /document.*viewer|viewer.*document/i
+        ];
+        
+        const hasActualResume = actualResumeIndicators.some(pattern => pattern.test(html));
+        if (hasActualResume) {
+          console.log('✅ Found actual resume upload indicators');
+          return true;
+        }
+        
+        // 4. VERIFICATION: Check for download buttons with specific context
+        const specificDownloadPatterns = [
+          /download.*resume|resume.*download/i,
+          /download.*cv|cv.*download/i,
+          /view.*resume.*pdf|resume.*pdf.*view/i
+        ];
+        
+        const hasSpecificDownloads = specificDownloadPatterns.some(pattern => pattern.test(html));
+        if (hasSpecificDownloads) {
+          console.log('✅ Found specific resume download patterns');
+          return true;
+        }
+        
+        // 5. LAST RESORT: Very specific structural checks
+        const structuralChecks = [
+          // LinkedIn's specific document structure
+          /pv-featured-item.*document|document.*pv-featured-item/i,
+          // Actual file extension patterns in links
+          /href="[^"]*\.pdf"/i,
+          // LinkedIn media object with document
+          /media-object.*document.*resume|resume.*document.*media-object/i
+        ];
+        
+        const hasStructuralEvidence = structuralChecks.some(pattern => pattern.test(html));
+        if (hasStructuralEvidence) {
+          console.log('✅ Found structural evidence of resume');
+          return true;
+        }
+        
+        console.log('❌ No resume evidence found');
+        return false;
         
       } catch (error) {
         console.error('Error checking profile for resume:', error);
@@ -531,10 +630,6 @@
       });
     }
 
-    delay(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     // Debug function for troubleshooting
     debugInfo() {
       console.log('=== LinkedIn Resume Detector Debug Info ===');
@@ -627,6 +722,37 @@
       console.log('Testing refresh...');
       detector.clearCache();
       detector.processSearchResults();
+    },
+    testResumeDetection: async function(profileUrl) {
+      if (!detector) {
+        console.log('Detector not initialized!');
+        return;
+      }
+      
+      if (!profileUrl) {
+        console.log('Usage: ResumeHuntDebug.testResumeDetection("https://www.linkedin.com/in/username")');
+        return;
+      }
+      
+      console.log('🔍 Testing resume detection for:', profileUrl);
+      console.log('This will show detailed detection process...');
+      
+      try {
+        const hasResume = await detector.checkProfileForResume(profileUrl);
+        console.log('📊 Final result:', hasResume ? '✅ HAS RESUME' : '❌ NO RESUME');
+        return hasResume;
+      } catch (error) {
+        console.error('❌ Error testing resume detection:', error);
+        return false;
+      }
+    },
+    clearCache: function() {
+      if (!detector) {
+        console.log('Detector not initialized!');
+        return;
+      }
+      detector.clearCache();
+      console.log('✅ Cache cleared');
     },
     testMessageHandling: function() {
       if (!detector) {
