@@ -85,9 +85,9 @@ document.addEventListener('DOMContentLoaded', function() {
       'maxConcurrentChecks'
     ], function(result) {
       enabledToggle.checked = result.enabled !== false;
-      autoCheckToggle.checked = result.autoCheck !== false;
-      delayInput.value = result.delay || 1000;
-      maxChecksInput.value = result.maxConcurrentChecks || 5;
+      autoCheckToggle.checked = result.autoCheck === true; // Default to false for safety
+      delayInput.value = result.delay || 2000; // Conservative default
+      maxChecksInput.value = result.maxConcurrentChecks || 1; // Conservative default
       updateStatus();
     });
   }

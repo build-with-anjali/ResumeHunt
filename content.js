@@ -5,9 +5,9 @@ class LinkedInResumeDetector {
     this.isProcessing = false;
     this.settings = {
       enabled: true,
-      autoCheck: true,
-      delay: 1000,
-      maxConcurrentChecks: 5
+      autoCheck: false, // Disabled by default for safety
+      delay: 2000, // 2 seconds minimum for safety
+      maxConcurrentChecks: 1 // Conservative concurrent limit
     };
     this.stats = {
       profilesChecked: 0,
@@ -83,11 +83,20 @@ class LinkedInResumeDetector {
 
   waitForSearchResults() {
     const checkForResults = () => {
-      const searchResults = document.querySelector('.search-results-container');
+      console.log('LinkedIn Resume Detector: Checking for search results...');
+      
+      // Try multiple selectors for LinkedIn search results
+      const searchResults = document.querySelector('.search-results-container') || 
+                           document.querySelector('.search-results') ||
+                           document.querySelector('[data-chameleon-result-urn]')?.parentElement ||
+                           document.querySelector('.reusable-search-results-list');
+      
       if (searchResults) {
+        console.log('LinkedIn Resume Detector: Found search results container');
         this.processSearchResults();
         this.observeChanges();
       } else {
+        console.log('LinkedIn Resume Detector: No search results found, retrying...');
         setTimeout(checkForResults, 1000);
       }
     };
@@ -103,13 +112,23 @@ class LinkedInResumeDetector {
         }
       });
       if (shouldProcess && !this.isProcessing && this.settings.enabled && this.settings.autoCheck) {
+        console.log('LinkedIn Resume Detector: Page content changed, processing new results...');
         setTimeout(() => this.processSearchResults(), 500);
       }
     });
 
-    const container = document.querySelector('.search-results-container');
+    // Try multiple selectors for the container to observe
+    const container = document.querySelector('.search-results-container') ||
+                     document.querySelector('.search-results') ||
+                     document.querySelector('.reusable-search-results-list') ||
+                     document.querySelector('[data-chameleon-result-urn]')?.parentElement ||
+                     document.body;
+    
     if (container) {
+      console.log('LinkedIn Resume Detector: Setting up mutation observer');
       observer.observe(container, { childList: true, subtree: true });
+    } else {
+      console.log('LinkedIn Resume Detector: No container found for mutation observer');
     }
   }
 
@@ -117,8 +136,19 @@ class LinkedInResumeDetector {
     if (this.isProcessing || !this.settings.enabled) return;
     this.isProcessing = true;
 
-    const profileCards = document.querySelectorAll('.entity-result__item');
-    console.log(`Found ${profileCards.length} profile cards`);
+    // Try multiple selectors for LinkedIn profile cards
+    const profileCards = document.querySelectorAll('.entity-result__item') || 
+                        document.querySelectorAll('.reusable-search__result-container') ||
+                        document.querySelectorAll('[data-chameleon-result-urn]') ||
+                        document.querySelectorAll('.search-result');
+
+    console.log(`LinkedIn Resume Detector: Found ${profileCards.length} profile cards`);
+    
+    if (profileCards.length === 0) {
+      console.log('LinkedIn Resume Detector: No profile cards found with current selectors');
+      this.isProcessing = false;
+      return;
+    }
 
     // Process cards in batches to respect maxConcurrentChecks
     const batchSize = this.settings.maxConcurrentChecks;
@@ -133,11 +163,21 @@ class LinkedInResumeDetector {
 
   async processProfileCard(card) {
     try {
-      const profileLink = card.querySelector('a[href*="/in/"]');
-      if (!profileLink) return;
+      // Try multiple selectors for profile links
+      const profileLink = card.querySelector('a[href*="/in/"]') ||
+                         card.querySelector('a[href*="linkedin.com/in/"]') ||
+                         card.querySelector('[data-control-name="search_srp_result"]') ||
+                         card.querySelector('.app-aware-link');
+      
+      if (!profileLink) {
+        console.log('LinkedIn Resume Detector: No profile link found in card');
+        return;
+      }
 
       const profileUrl = profileLink.href;
       const profileId = this.extractProfileId(profileUrl);
+      
+      console.log(`LinkedIn Resume Detector: Processing profile ${profileId}`);
       
       if (this.checkedProfiles.has(profileId)) {
         this.updateCardIndicator(card, this.resumeCache.get(profileId));
@@ -260,12 +300,25 @@ class LinkedInResumeDetector {
   }
 
   insertIndicator(card, indicator) {
+    // Try multiple selectors for where to place the indicator
     const targetElement = card.querySelector('.entity-result__primary-subtitle') || 
                          card.querySelector('.entity-result__secondary-subtitle') ||
-                         card.querySelector('.entity-result__summary');
+                         card.querySelector('.entity-result__summary') ||
+                         card.querySelector('.search-result__info') ||
+                         card.querySelector('.result-lockup__name') ||
+                         card.querySelector('.search-result__wrapper') ||
+                         card.querySelector('.reusable-search__result-container-inner');
     
     if (targetElement) {
+      console.log('LinkedIn Resume Detector: Inserting indicator');
       targetElement.appendChild(indicator);
+    } else {
+      console.log('LinkedIn Resume Detector: No suitable element found for indicator placement');
+      // Fallback: try to insert at the end of the card
+      const cardContainer = card.querySelector('.entity-result') || card;
+      if (cardContainer) {
+        cardContainer.appendChild(indicator);
+      }
     }
   }
 
@@ -292,13 +345,67 @@ class LinkedInResumeDetector {
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  // Debug function for troubleshooting
+  debugInfo() {
+    console.log('=== LinkedIn Resume Detector Debug Info ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Settings:', this.settings);
+    console.log('Stats:', this.stats);
+    console.log('Is processing:', this.isProcessing);
+    
+    // Check for search results containers
+    const containers = [
+      '.search-results-container',
+      '.search-results',
+      '.reusable-search-results-list',
+      '[data-chameleon-result-urn]'
+    ];
+    
+    console.log('--- Container Detection ---');
+    containers.forEach(selector => {
+      const element = document.querySelector(selector);
+      console.log(`${selector}: ${element ? 'FOUND' : 'NOT FOUND'}`);
+    });
+    
+    // Check for profile cards
+    const cardSelectors = [
+      '.entity-result__item',
+      '.reusable-search__result-container',
+      '[data-chameleon-result-urn]',
+      '.search-result'
+    ];
+    
+    console.log('--- Profile Card Detection ---');
+    cardSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      console.log(`${selector}: ${elements.length} found`);
+    });
+    
+    console.log('=== End Debug Info ===');
+  }
 }
+
+// Make debug function available globally
+window.ResumeHuntDebug = null;
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    new LinkedInResumeDetector();
+    try {
+      const detector = new LinkedInResumeDetector();
+      window.ResumeHuntDebug = detector;
+      console.log('LinkedIn Resume Detector: Initialized successfully. Type "ResumeHuntDebug.debugInfo()" in console for debugging.');
+    } catch (error) {
+      console.error('LinkedIn Resume Detector: Failed to initialize:', error);
+    }
   });
 } else {
-  new LinkedInResumeDetector();
+  try {
+    const detector = new LinkedInResumeDetector();
+    window.ResumeHuntDebug = detector;
+    console.log('LinkedIn Resume Detector: Initialized successfully. Type "ResumeHuntDebug.debugInfo()" in console for debugging.');
+  } catch (error) {
+    console.error('LinkedIn Resume Detector: Failed to initialize:', error);
+  }
 } 

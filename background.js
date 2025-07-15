@@ -2,12 +2,12 @@
 chrome.runtime.onInstalled.addListener(() => {
   console.log('LinkedIn Resume Detector installed');
   
-  // Set default settings
+  // Set default settings (conservative for safety)
   chrome.storage.sync.set({
     enabled: true,
-    autoCheck: true,
-    delay: 1000,
-    maxConcurrentChecks: 5
+    autoCheck: false, // Disabled by default for safety
+    delay: 2000, // 2 seconds minimum for safety
+    maxConcurrentChecks: 1 // Conservative concurrent limit
   });
 });
 

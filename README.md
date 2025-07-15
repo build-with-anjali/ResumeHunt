@@ -2,6 +2,10 @@
 
 A Chrome extension that automatically detects and highlights LinkedIn profiles with attached resumes/CVs on search results pages. Save time by quickly identifying candidates who have uploaded their resumes without clicking into each profile.
 
+## ⚠️ Important Safety Warning
+
+**Please read [SAFETY.md](SAFETY.md) before using this extension.** This tool makes automated requests to LinkedIn, which carries risks including potential account restrictions. Use conservatively and responsibly.
+
 ## Features
 
 - 🔍 **Automatic Detection**: Scans LinkedIn search results for profiles with resumes
@@ -99,6 +103,28 @@ linkedin-resume-detector/
 - **Local Processing**: All resume detection happens locally
 - **No External Servers**: No data is sent to external services
 - **LinkedIn Terms**: Respects LinkedIn's rate limiting and terms of service
+
+## ⚠️ Risks and Safety
+
+### Potential Account Risks
+- **Rate Limiting**: LinkedIn may temporarily restrict your account
+- **Account Suspension**: For repeated violations of LinkedIn's terms
+- **Detection**: LinkedIn actively monitors for automated activity
+
+### Conservative Usage Recommendations
+- **Use 2000ms+ delays** between profile checks
+- **Limit to 1-2 concurrent checks**
+- **Disable auto-check** for manual control
+- **Take regular breaks** (1-2 hours between sessions)
+- **Use for short periods** (10-15 minutes maximum)
+
+### Default Settings (Conservative)
+- **Auto Check**: Disabled by default
+- **Delay**: 2000ms minimum
+- **Concurrent Checks**: 1 profile at a time
+- **Manual Control**: Recommended over automatic scanning
+
+**Read [SAFETY.md](SAFETY.md) for detailed safety guidelines.**
 
 ## Troubleshooting
 

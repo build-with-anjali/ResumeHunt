@@ -113,6 +113,29 @@
             box-shadow: 0 0 0 2px rgba(0, 115, 177, 0.1);
         }
 
+        .warning-section {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .warning-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: #92400e;
+        }
+
+        .warning-desc {
+            font-size: 11px;
+            color: #78350f;
+            margin-left: 24px;
+        }
+
         .status-section {
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -221,6 +244,16 @@
         <h1>Resume Detector</h1>
     </div>
 
+    <div class="warning-section">
+        <div class="warning-item">
+            <span>⚠️</span>
+            <span>Use conservatively to avoid LinkedIn restrictions</span>
+        </div>
+        <div class="warning-desc">
+            Recommended: 2000ms+ delay, 1-2 concurrent checks, manual control
+        </div>
+    </div>
+
     <div class="status-section">
         <div class="status-item">
             <span>Status:</span>
@@ -271,7 +304,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Auto Check</span>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="autoCheckToggle" checked>
+                    <input type="checkbox" id="autoCheckToggle">
                     <span class="slider"></span>
                 </label>
             </div>
@@ -286,7 +319,7 @@
         <div class="setting-description">
             Delay between profile checks to avoid rate limiting
         </div>
-        <input type="number" id="delayInput" class="number-input" min="500" max="5000" step="250" value="1000">
+        <input type="number" id="delayInput" class="number-input" min="1000" max="5000" step="250" value="2000">
     </div>
 
     <div class="setting-group">
@@ -294,7 +327,7 @@
         <div class="setting-description">
             Maximum number of profiles to check simultaneously
         </div>
-        <input type="number" id="maxChecksInput" class="number-input" min="1" max="10" value="5">
+        <input type="number" id="maxChecksInput" class="number-input" min="1" max="3" value="1">
     </div>
 
     <div class="action-buttons">
