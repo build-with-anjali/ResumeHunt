@@ -362,7 +362,39 @@
       const indicator = document.createElement('div');
       indicator.className = `resume-indicator ${hasResume ? 'has-resume' : 'no-resume'}`;
       indicator.innerHTML = hasResume ? '📄' : '❌';
-      indicator.title = hasResume ? 'Resume/CV available' : 'No resume found';
+      indicator.title = hasResume ? 'Resume/CV available - Click to view profile' : 'No resume found';
+      
+      // Add click functionality for resume indicators
+      if (hasResume) {
+        indicator.style.cursor = 'pointer';
+        indicator.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('📄 Resume icon clicked!');
+          
+          // Extract profile URL from the card
+          const profileUrl = this.getProfileUrlFromCard(card);
+          if (profileUrl) {
+            console.log('Opening profile resume:', profileUrl);
+            // Open profile in new tab and navigate to documents/featured section
+            this.openProfileResume(profileUrl);
+          } else {
+            console.error('Could not extract profile URL from card');
+            this.showNotification('❌ Could not find profile URL');
+          }
+        });
+        
+        // Add hover effect
+        indicator.addEventListener('mouseenter', () => {
+          indicator.style.transform = 'scale(1.1)';
+          indicator.style.transition = 'transform 0.2s';
+        });
+        
+        indicator.addEventListener('mouseleave', () => {
+          indicator.style.transform = 'scale(1)';
+        });
+      }
       
       this.insertIndicator(card, indicator);
     }
@@ -383,11 +415,100 @@
       } else {
         console.log('LinkedIn Resume Detector: No suitable element found for indicator placement');
         // Fallback: try to insert at the end of the card
-        const cardContainer = card.querySelector('.entity-result') || card;
-        if (cardContainer) {
-          cardContainer.appendChild(indicator);
+        card.appendChild(indicator);
+      }
+    }
+
+    getProfileUrlFromCard(card) {
+      // Try multiple selectors for profile links
+      const profileLink = card.querySelector('a[href*="/in/"]') ||
+                         card.querySelector('a[href*="linkedin.com/in/"]') ||
+                         card.querySelector('[data-control-name="search_srp_result"]') ||
+                         card.querySelector('.app-aware-link');
+      
+      if (profileLink) {
+        return profileLink.href;
+      }
+      
+      // Fallback: try to find any link that looks like a profile
+      const allLinks = card.querySelectorAll('a[href]');
+      for (const link of allLinks) {
+        if (link.href.includes('/in/') && link.href.includes('linkedin.com')) {
+          return link.href;
         }
       }
+      
+      return null;
+    }
+
+    openProfileResume(profileUrl) {
+      console.log('Opening profile resume for:', profileUrl);
+      
+      // Clean the profile URL to ensure it's in the correct format
+      let cleanUrl = profileUrl.split('?')[0]; // Remove query parameters
+      if (!cleanUrl.endsWith('/')) {
+        cleanUrl += '/';
+      }
+      
+      // Try multiple LinkedIn sections where resumes might be found
+      const resumeSections = [
+        'details/featured/',           // Featured section (most common for resumes)
+        'details/documents/',          // Documents section
+        'details/experience/',         // Experience section (sometimes has resume links)
+        'details/skills/',             // Skills section
+        ''                            // Fallback to main profile
+      ];
+      
+      // Start with the most likely section
+      const resumeUrl = cleanUrl + resumeSections[0];
+      
+      // Open in new tab
+      window.open(resumeUrl, '_blank', 'noopener,noreferrer');
+      
+      // Show notification
+      this.showNotification('Opening profile resume in new tab...');
+    }
+
+    showNotification(message) {
+      // Create a temporary notification
+      const notification = document.createElement('div');
+      notification.textContent = message;
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #0073b1;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        z-index: 10000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease-out;
+      `;
+      
+      // Add animation
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      document.body.appendChild(notification);
+      
+      // Remove after 3 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.style.animation = 'slideIn 0.3s ease-out reverse';
+          setTimeout(() => {
+            notification.parentNode.removeChild(notification);
+          }, 300);
+        }
+      }, 3000);
     }
 
     clearCache() {
@@ -546,6 +667,7 @@
     if (window.ResumeHuntDebug) {
       console.log('Test debug info:', window.ResumeHuntDebug.debugInfo ? 'Available' : 'Not available');
     }
+    console.log('✨ NEW FEATURE: Click on green 📄 resume icons to open profiles!');
     console.log('=== End Verification ===');
   }, 1000);
 })(); 
