@@ -5,7 +5,9 @@
   "description": "Shows green indicators for LinkedIn profiles with attached resumes",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "contextMenus",
+    "scripting"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*"

@@ -36,10 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
     this.disabled = true;
     this.textContent = 'Refreshing...';
     
-    // Send message to content script to refresh
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (tabs[0] && tabs[0].url.includes('linkedin.com/search/results/people/')) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'refreshCheck'}, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending refresh message:', chrome.runtime.lastError);
+            showNotification('Error: Content script not loaded');
+          }
           setTimeout(() => {
             refreshBtn.disabled = false;
             refreshBtn.textContent = 'Refresh Check';
@@ -61,6 +64,10 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (tabs[0] && tabs[0].url.includes('linkedin.com/search/results/people/')) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'clearCache'}, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending clear cache message:', chrome.runtime.lastError);
+            showNotification('Error: Content script not loaded');
+          }
           setTimeout(() => {
             clearCacheBtn.disabled = false;
             clearCacheBtn.textContent = 'Clear Cache';
@@ -127,6 +134,11 @@ document.addEventListener('DOMContentLoaded', function() {
             action: 'settingUpdated',
             key: key,
             value: value
+          }, function(response) {
+            if (chrome.runtime.lastError) {
+              console.error('Error sending setting update:', chrome.runtime.lastError);
+              // Setting was saved to storage, so it's not a critical error
+            }
           });
         }
       });

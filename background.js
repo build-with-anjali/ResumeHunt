@@ -9,7 +9,34 @@ chrome.runtime.onInstalled.addListener(() => {
     delay: 2000, // 2 seconds minimum for safety
     maxConcurrentChecks: 1 // Conservative concurrent limit
   });
+
+  // Initialize context menu
+  initializeContextMenu();
 });
+
+// Initialize context menu with error handling
+function initializeContextMenu() {
+  try {
+    // Remove existing context menu items first
+    chrome.contextMenus.removeAll(() => {
+      // Create new context menu
+      chrome.contextMenus.create({
+        id: 'toggleResumeDetector',
+        title: 'Toggle Resume Detector',
+        contexts: ['page'],
+        documentUrlPatterns: ['https://www.linkedin.com/search/results/people/*']
+      }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Context menu creation failed:', chrome.runtime.lastError);
+        } else {
+          console.log('Context menu created successfully');
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error initializing context menu:', error);
+  }
+}
 
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -35,6 +62,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'logActivity') {
     console.log('LinkedIn Resume Detector:', request.message);
   }
+
+  if (request.action === 'updateBadge') {
+    try {
+      chrome.action.setBadgeText({
+        text: request.count.toString(),
+        tabId: sender.tab.id
+      });
+      chrome.action.setBadgeBackgroundColor({
+        color: '#22c55e'
+      });
+    } catch (error) {
+      console.error('Error updating badge:', error);
+    }
+  }
 });
 
 // Handle tab updates to inject content script if needed
@@ -54,14 +95,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// Context menu for quick actions
-chrome.contextMenus.create({
-  id: 'toggleResumeDetector',
-  title: 'Toggle Resume Detector',
-  contexts: ['page'],
-  documentUrlPatterns: ['https://www.linkedin.com/search/results/people/*']
-});
-
+// Context menu click handler
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'toggleResumeDetector') {
     chrome.storage.sync.get(['enabled'], (result) => {
@@ -70,21 +104,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         chrome.tabs.sendMessage(tab.id, { 
           action: 'toggleEnabled', 
           enabled: newState 
+        }).catch(err => {
+          console.error('Error sending toggle message:', err);
         });
       });
-    });
-  }
-});
-
-// Badge management
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'updateBadge') {
-    chrome.action.setBadgeText({
-      text: request.count.toString(),
-      tabId: sender.tab.id
-    });
-    chrome.action.setBadgeBackgroundColor({
-      color: '#22c55e'
     });
   }
 });
@@ -92,6 +115,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Handle extension icon click
 chrome.action.onClicked.addListener((tab) => {
   if (tab.url && tab.url.includes('linkedin.com/search/results/people/')) {
-    chrome.tabs.sendMessage(tab.id, { action: 'refreshCheck' });
+    chrome.tabs.sendMessage(tab.id, { action: 'refreshCheck' }).catch(err => {
+      console.error('Error sending refresh message:', err);
+    });
   }
 }); 
