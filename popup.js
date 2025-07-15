@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxChecksInput = document.getElementById('maxChecksInput');
   const refreshBtn = document.getElementById('refreshBtn');
   const clearCacheBtn = document.getElementById('clearCacheBtn');
+  const debugBtn = document.getElementById('debugBtn');
   const extensionStatus = document.getElementById('extensionStatus');
   const profilesChecked = document.getElementById('profilesChecked');
   const resumesFound = document.getElementById('resumesFound');
@@ -81,6 +82,57 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  debugBtn.addEventListener('click', function() {
+    this.disabled = true;
+    this.textContent = 'Debugging...';
+    
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs[0]) {
+        // Get basic info
+        const currentUrl = tabs[0].url;
+        const isLinkedIn = currentUrl.includes('linkedin.com');
+        const isSearchPage = currentUrl.includes('linkedin.com/search/results/people/');
+        
+        let debugInfo = `=== Debug Info ===\n`;
+        debugInfo += `Current URL: ${currentUrl}\n`;
+        debugInfo += `Is LinkedIn: ${isLinkedIn}\n`;
+        debugInfo += `Is Search Page: ${isSearchPage}\n`;
+        debugInfo += `Extension should work: ${isSearchPage}\n\n`;
+        
+        if (isSearchPage) {
+          // Try to get content script status
+          chrome.tabs.sendMessage(tabs[0].id, {action: 'getStatus'}, function(response) {
+            if (chrome.runtime.lastError) {
+              debugInfo += `Content Script: NOT LOADED\n`;
+              debugInfo += `Error: ${chrome.runtime.lastError.message}\n`;
+              debugInfo += `\nTroubleshooting:\n`;
+              debugInfo += `1. Try refreshing the LinkedIn page\n`;
+              debugInfo += `2. Try reloading the extension\n`;
+              debugInfo += `3. Check if page fully loaded\n`;
+            } else {
+              debugInfo += `Content Script: LOADED ✓\n`;
+              debugInfo += `Stats: ${JSON.stringify(response, null, 2)}\n`;
+              debugInfo += `\nIf not working:\n`;
+              debugInfo += `1. Open Developer Tools (F12)\n`;
+              debugInfo += `2. Go to Console tab\n`;
+              debugInfo += `3. Type: ResumeHuntDebug.debugInfo()\n`;
+            }
+            
+            alert(debugInfo);
+            debugBtn.disabled = false;
+            debugBtn.textContent = 'Debug Info';
+          });
+        } else {
+          debugInfo += `Solution: Navigate to LinkedIn search results page\n`;
+          debugInfo += `Example: https://www.linkedin.com/search/results/people/`;
+          alert(debugInfo);
+          debugBtn.disabled = false;
+          debugBtn.textContent = 'Debug Info';
+        }
+      }
+    });
+  });
+
   // Update status every few seconds
   setInterval(loadStatus, 3000);
 
@@ -105,19 +157,27 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'getStatus'}, function(response) {
           if (chrome.runtime.lastError) {
             // Content script not loaded yet
-            profilesChecked.textContent = '0';
-            resumesFound.textContent = '0';
+            console.log('Content script not loaded:', chrome.runtime.lastError.message);
+            profilesChecked.textContent = 'N/A';
+            resumesFound.textContent = 'N/A';
+            extensionStatus.textContent = 'Not loaded';
+            extensionStatus.style.color = '#dc2626';
             return;
           }
           
           if (response) {
             profilesChecked.textContent = response.profilesChecked || '0';
             resumesFound.textContent = response.resumesFound || '0';
+          } else {
+            profilesChecked.textContent = '0';
+            resumesFound.textContent = '0';
           }
         });
       } else {
         profilesChecked.textContent = 'N/A';
         resumesFound.textContent = 'N/A';
+        extensionStatus.textContent = 'Wrong page';
+        extensionStatus.style.color = '#dc2626';
       }
     });
   }

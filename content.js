@@ -17,7 +17,8 @@ class LinkedInResumeDetector {
   }
 
   init() {
-    console.log('LinkedIn Resume Detector initialized');
+    console.log('LinkedIn Resume Detector initialized on:', window.location.href);
+    console.log('Current URL matches LinkedIn search:', window.location.href.includes('linkedin.com/search/results/people/'));
     this.loadSettings();
     this.setupMessageListener();
     this.waitForSearchResults();
@@ -386,15 +387,54 @@ class LinkedInResumeDetector {
   }
 }
 
-// Make debug function available globally
-window.ResumeHuntDebug = null;
+// Initialize the detector
+let detector;
+
+// Global debug function for testing
+window.ResumeHuntDebug = {
+  get detector() { return detector; },
+  debugInfo: function() {
+    if (!detector) {
+      console.log('=== LinkedIn Resume Detector NOT INITIALIZED ===');
+      return null;
+    }
+    console.log('=== LinkedIn Resume Detector Debug Info ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Settings:', detector.settings);
+    console.log('Stats:', detector.stats);
+    console.log('Is processing:', detector.isProcessing);
+    console.log('Cache size:', detector.resumeCache.size);
+    console.log('Checked profiles:', detector.checkedProfiles.size);
+    console.log('Found search results:', document.querySelectorAll('.reusable-search__result-container').length);
+    console.log('=== End Debug Info ===');
+    return detector;
+  },
+  testRefresh: function() {
+    if (!detector) {
+      console.log('Detector not initialized!');
+      return;
+    }
+    console.log('Testing refresh...');
+    detector.clearCache();
+    detector.processSearchResults();
+  },
+  testMessageHandling: function() {
+    if (!detector) {
+      console.log('Detector not initialized!');
+      return;
+    }
+    console.log('Testing message handling...');
+    const testMessage = { action: 'getStatus' };
+    const response = detector.handleMessage(testMessage);
+    console.log('Response:', response);
+  }
+};
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     try {
-      const detector = new LinkedInResumeDetector();
-      window.ResumeHuntDebug = detector;
+      detector = new LinkedInResumeDetector();
       console.log('LinkedIn Resume Detector: Initialized successfully. Type "ResumeHuntDebug.debugInfo()" in console for debugging.');
     } catch (error) {
       console.error('LinkedIn Resume Detector: Failed to initialize:', error);
@@ -402,8 +442,7 @@ if (document.readyState === 'loading') {
   });
 } else {
   try {
-    const detector = new LinkedInResumeDetector();
-    window.ResumeHuntDebug = detector;
+    detector = new LinkedInResumeDetector();
     console.log('LinkedIn Resume Detector: Initialized successfully. Type "ResumeHuntDebug.debugInfo()" in console for debugging.');
   } catch (error) {
     console.error('LinkedIn Resume Detector: Failed to initialize:', error);
