@@ -10,7 +10,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/*"
+    "https://www.linkedin.com/*",
+    "https://linkedin.com/*"
   ],
   "content_scripts": [
     {
@@ -18,7 +19,9 @@
         "https://www.linkedin.com/search/results/people/*",
         "https://www.linkedin.com/search/results/all/*",
         "https://linkedin.com/search/results/people/*",
-        "https://linkedin.com/search/results/all/*"
+        "https://linkedin.com/search/results/all/*",
+        "https://www.linkedin.com/search/*",
+        "https://linkedin.com/search/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],

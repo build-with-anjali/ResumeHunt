@@ -1,5 +1,12 @@
+// LinkedIn Resume Detector Content Script
+console.log('=== LinkedIn Resume Detector Content Script Loading ===');
+console.log('URL:', window.location.href);
+console.log('Document ready state:', document.readyState);
+console.log('Time:', new Date().toISOString());
+
 class LinkedInResumeDetector {
   constructor() {
+    console.log('LinkedInResumeDetector constructor called');
     this.checkedProfiles = new Set();
     this.resumeCache = new Map();
     this.isProcessing = false;
@@ -18,7 +25,7 @@ class LinkedInResumeDetector {
 
   init() {
     console.log('LinkedIn Resume Detector initialized on:', window.location.href);
-    console.log('Current URL matches LinkedIn search:', window.location.href.includes('linkedin.com/search/results/people/'));
+    console.log('Current URL matches LinkedIn search:', window.location.href.includes('linkedin.com/search'));
     this.loadSettings();
     this.setupMessageListener();
     this.waitForSearchResults();
@@ -447,4 +454,15 @@ if (document.readyState === 'loading') {
   } catch (error) {
     console.error('LinkedIn Resume Detector: Failed to initialize:', error);
   }
-} 
+}
+
+// Final verification
+setTimeout(() => {
+  console.log('=== Final Content Script Verification ===');
+  console.log('ResumeHuntDebug available:', typeof window.ResumeHuntDebug !== 'undefined');
+  console.log('Detector instance:', detector ? 'Available' : 'Not available');
+  if (window.ResumeHuntDebug) {
+    console.log('Test debug info:', window.ResumeHuntDebug.debugInfo ? 'Available' : 'Not available');
+  }
+  console.log('=== End Verification ===');
+}, 1000); 

@@ -171,6 +171,15 @@
   background-color: #2563eb;
 }
 
+.btn-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #d97706;
+}
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

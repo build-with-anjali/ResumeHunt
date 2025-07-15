@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxChecksInput = document.getElementById('maxChecksInput');
   const refreshBtn = document.getElementById('refreshBtn');
   const clearCacheBtn = document.getElementById('clearCacheBtn');
+  const forceReloadBtn = document.getElementById('forceReloadBtn');
   const debugBtn = document.getElementById('debugBtn');
   const extensionStatus = document.getElementById('extensionStatus');
   const profilesChecked = document.getElementById('profilesChecked');
@@ -78,6 +79,47 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         clearCacheBtn.disabled = false;
         clearCacheBtn.textContent = 'Clear Cache';
+      }
+    });
+  });
+
+  forceReloadBtn.addEventListener('click', function() {
+    this.disabled = true;
+    this.textContent = 'Force Reloading...';
+    
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs[0]) {
+        const currentUrl = tabs[0].url;
+        const isLinkedIn = currentUrl.includes('linkedin.com');
+        
+        if (!isLinkedIn) {
+          showNotification('Please navigate to LinkedIn first');
+          forceReloadBtn.disabled = false;
+          forceReloadBtn.textContent = 'Force Reload';
+          return;
+        }
+        
+        // Force inject the content script
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          files: ['content.js']
+        }).then(() => {
+          showNotification('Content script injected successfully!');
+          setTimeout(() => {
+            forceReloadBtn.disabled = false;
+            forceReloadBtn.textContent = 'Force Reload';
+            loadStatus(); // Reload status after injection
+          }, 1000);
+        }).catch(error => {
+          console.error('Error injecting content script:', error);
+          showNotification('Error injecting content script: ' + error.message);
+          forceReloadBtn.disabled = false;
+          forceReloadBtn.textContent = 'Force Reload';
+        });
+      } else {
+        forceReloadBtn.disabled = false;
+        forceReloadBtn.textContent = 'Force Reload';
+        showNotification('No active tab found');
       }
     });
   });
@@ -208,8 +250,37 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateStatus() {
     chrome.storage.sync.get(['enabled'], function(result) {
       const isEnabled = result.enabled !== false;
-      extensionStatus.textContent = isEnabled ? 'Active' : 'Disabled';
-      extensionStatus.style.color = isEnabled ? '#0073b1' : '#dc2626';
+      
+      // Check if we're on a LinkedIn search page
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs[0]) {
+          const url = tabs[0].url;
+          const isLinkedInSearch = url.includes('linkedin.com/search');
+          
+          if (!isLinkedInSearch) {
+            extensionStatus.textContent = 'Navigate to LinkedIn search';
+            extensionStatus.style.color = '#f59e0b';
+            return;
+          }
+          
+          // Test if content script is loaded
+          chrome.tabs.sendMessage(tabs[0].id, {action: 'getStatus'}, function(response) {
+            if (chrome.runtime.lastError) {
+              extensionStatus.textContent = 'Content script not loaded';
+              extensionStatus.style.color = '#dc2626';
+            } else if (isEnabled) {
+              extensionStatus.textContent = 'Active';
+              extensionStatus.style.color = '#22c55e';
+            } else {
+              extensionStatus.textContent = 'Disabled';
+              extensionStatus.style.color = '#dc2626';
+            }
+          });
+        } else {
+          extensionStatus.textContent = 'Unknown status';
+          extensionStatus.style.color = '#6b7280';
+        }
+      });
     });
   }
 

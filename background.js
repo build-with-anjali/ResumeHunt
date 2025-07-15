@@ -80,18 +80,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Handle tab updates to inject content script if needed
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && 
-      tab.url && 
-      tab.url.includes('linkedin.com/search/results/people/')) {
+  if (changeInfo.status === 'complete' && tab.url) {
+    // Check if it's a LinkedIn search page
+    const isLinkedInSearch = tab.url.includes('linkedin.com/search') || 
+                           tab.url.includes('linkedin.com/search/results/people/') ||
+                           tab.url.includes('linkedin.com/search/results/all/');
     
-    // Inject content script if not already present
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['content.js']
-    }).catch(err => {
-      // Script might already be injected
-      console.log('Content script injection skipped:', err.message);
-    });
+    if (isLinkedInSearch) {
+      console.log('LinkedIn search page detected, injecting content script:', tab.url);
+      
+      // Inject content script if not already present
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      }).then(() => {
+        console.log('Content script injected successfully');
+      }).catch(err => {
+        console.log('Content script injection skipped (likely already present):', err.message);
+      });
+    }
   }
 });
 
