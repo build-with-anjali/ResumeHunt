@@ -1,0 +1,154 @@
+/* Resume indicator styles */
+.resume-indicator {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Montserrat', sans-serif;
+  vertical-align: middle;
+  transition: all 0.3s ease;
+  cursor: help;
+}
+
+.resume-indicator.has-resume {
+  background-color: #22c55e;
+  color: white;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+}
+
+.resume-indicator.has-resume:hover {
+  background-color: #16a34a;
+  transform: scale(1.05);
+}
+
+.resume-indicator.no-resume {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.resume-indicator.no-resume:hover {
+  background-color: #e5e7eb;
+}
+
+.resume-indicator.loading {
+  background-color: #f59e0b;
+  color: white;
+  padding: 4px 8px;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Enhanced profile card styling */
+.entity-result__item {
+  position: relative;
+}
+
+.entity-result__item:hover .resume-indicator {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .resume-indicator {
+    font-size: 10px;
+    padding: 1px 4px;
+    margin-left: 4px;
+  }
+}
+
+/* Tooltip enhancement */
+.resume-indicator::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1f2937;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+  margin-bottom: 5px;
+}
+
+.resume-indicator::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #1f2937;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+}
+
+.resume-indicator:hover::after,
+.resume-indicator:hover::before {
+  opacity: 1;
+}
+
+/* Status badge positioning */
+.entity-result__primary-subtitle,
+.entity-result__secondary-subtitle,
+.entity-result__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Smooth appearance animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.resume-indicator {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .resume-indicator.has-resume {
+    background-color: #059669;
+    border: 2px solid #065f46;
+  }
+  
+  .resume-indicator.no-resume {
+    background-color: #f9fafb;
+    border: 2px solid #9ca3af;
+    color: #374151;
+  }
+} 

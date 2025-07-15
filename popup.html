@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Resume Detector</title>
+    <style>
+        body {
+            width: 320px;
+            padding: 16px;
+            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #1f2937;
+            background-color: #ffffff;
+            margin: 0;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            color: #0073b1;
+        }
+
+        .header .logo {
+            font-size: 24px;
+        }
+
+        .setting-group {
+            margin-bottom: 16px;
+        }
+
+        .setting-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #374151;
+        }
+
+        .setting-description {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #0073b1;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        .number-input {
+            width: 80px;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .number-input:focus {
+            outline: none;
+            border-color: #0073b1;
+            box-shadow: 0 0 0 2px rgba(0, 115, 177, 0.1);
+        }
+
+        .status-section {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-value {
+            font-weight: 500;
+            color: #0073b1;
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .legend-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .legend-indicator.has-resume {
+            background-color: #22c55e;
+        }
+
+        .legend-indicator.no-resume {
+            background-color: #f3f4f6;
+            border: 1px solid #e5e7eb;
+        }
+
+        .legend-indicator.loading {
+            background-color: #f59e0b;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #0073b1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #005885;
+        }
+
+        .btn-secondary {
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e5e7eb;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 11px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="logo">📄</span>
+        <h1>Resume Detector</h1>
+    </div>
+
+    <div class="status-section">
+        <div class="status-item">
+            <span>Status:</span>
+            <span class="status-value" id="extensionStatus">Active</span>
+        </div>
+        <div class="status-item">
+            <span>Profiles Checked:</span>
+            <span class="status-value" id="profilesChecked">0</span>
+        </div>
+        <div class="status-item">
+            <span>Resumes Found:</span>
+            <span class="status-value" id="resumesFound">0</span>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <span class="legend-indicator has-resume"></span>
+            <span>Has Resume</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-indicator no-resume"></span>
+            <span>No Resume</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-indicator loading"></span>
+            <span>Checking...</span>
+        </div>
+    </div>
+
+    <div class="setting-group">
+        <label class="setting-label">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Enable Extension</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="enabledToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </label>
+        <div class="setting-description">
+            Automatically detect resumes on LinkedIn search results
+        </div>
+    </div>
+
+    <div class="setting-group">
+        <label class="setting-label">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Auto Check</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autoCheckToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </label>
+        <div class="setting-description">
+            Automatically check profiles as you browse
+        </div>
+    </div>
+
+    <div class="setting-group">
+        <label class="setting-label" for="delayInput">Check Delay (ms)</label>
+        <div class="setting-description">
+            Delay between profile checks to avoid rate limiting
+        </div>
+        <input type="number" id="delayInput" class="number-input" min="500" max="5000" step="250" value="1000">
+    </div>
+
+    <div class="setting-group">
+        <label class="setting-label" for="maxChecksInput">Max Concurrent Checks</label>
+        <div class="setting-description">
+            Maximum number of profiles to check simultaneously
+        </div>
+        <input type="number" id="maxChecksInput" class="number-input" min="1" max="10" value="5">
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn btn-primary" id="refreshBtn">Refresh Check</button>
+        <button class="btn btn-secondary" id="clearCacheBtn">Clear Cache</button>
+    </div>
+
+    <div class="footer">
+        LinkedIn Resume Detector v1.0
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html> 
