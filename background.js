@@ -91,41 +91,72 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       
       // Try multiple injection methods to bypass ad blockers
       setTimeout(() => {
-        // Method 1: Direct injection
-        chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['content.js']
-        }).then(() => {
-          console.log('Content script injected successfully (Method 1)');
-        }).catch(err => {
-          console.log('Method 1 failed:', err.message);
-          
-          // Method 2: Inline code injection as fallback
-          chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            func: () => {
-              // Inject a simple test to see if scripts can run
-              console.log('=== TESTING CONTENT SCRIPT INJECTION ===');
-              console.log('URL:', window.location.href);
-              console.log('Can access LinkedIn page:', document.title.includes('LinkedIn'));
-              
-              // Try to load the main content script
-              const script = document.createElement('script');
-              script.src = chrome.runtime.getURL('content.js');
-              script.onload = () => console.log('Content script loaded via DOM injection');
-              script.onerror = (e) => console.error('Content script failed to load:', e);
-              document.head.appendChild(script);
-            }
-          }).then(() => {
-            console.log('Fallback injection method executed');
-          }).catch(err => {
-            console.error('Both injection methods failed:', err);
-          });
-        });
+        injectContentScript(tabId);
       }, 1000); // Wait 1 second for page to fully load
     }
   }
 });
+
+// Handle tab activation (when user switches to a LinkedIn tab)
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (tab.url && (tab.url.includes('linkedin.com/search'))) {
+      console.log('LinkedIn tab activated, ensuring content script is loaded');
+      setTimeout(() => {
+        injectContentScript(activeInfo.tabId);
+      }, 500);
+    }
+  });
+});
+
+// Centralized content script injection function
+function injectContentScript(tabId) {
+  // Method 1: Direct injection
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ['content.js']
+  }).then(() => {
+    console.log('Content script injected successfully (Method 1)');
+  }).catch(err => {
+    console.log('Method 1 failed:', err.message);
+    
+    // Method 2: Test connection first, then inject
+    chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.log('No content script detected, trying fallback injection...');
+        
+        // Fallback injection with inline code
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          func: () => {
+            // Inject a minimal version if main script fails
+            if (!window.LinkedInResumeDetectorLoaded) {
+              console.log('=== FALLBACK CONTENT SCRIPT INJECTION ===');
+              window.LinkedInResumeDetectorLoaded = true;
+              
+              // Try to load the main script
+              try {
+                const script = document.createElement('script');
+                script.src = chrome.runtime.getURL('content.js');
+                script.onload = () => console.log('✅ Content script loaded via fallback');
+                script.onerror = () => console.log('❌ Content script fallback failed');
+                document.head.appendChild(script);
+              } catch (e) {
+                console.error('Fallback injection failed:', e);
+              }
+            }
+          }
+        }).then(() => {
+          console.log('Fallback injection method executed');
+        }).catch(err => {
+          console.error('Both injection methods failed:', err);
+        });
+      } else {
+        console.log('Content script already loaded and responding');
+      }
+    });
+  });
+}
 
 // Context menu click handler
 chrome.contextMenus.onClicked.addListener((info, tab) => {
