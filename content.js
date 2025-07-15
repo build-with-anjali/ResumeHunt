@@ -285,24 +285,32 @@
             if (featuredResponse.ok) {
               const featuredHtml = await featuredResponse.text();
               
-              // More strict validation on featured section
-              const hasActualDocuments = [
-                /document/i,
-                /\.pdf/i,
-                /resume/i,
-                /cv/i
+              // ULTRA STRICT validation on featured section - must contain actual resume/CV references
+              const hasActualResumeDocuments = [
+                // Must have resume/cv in filename or title
+                /resume.*\.pdf|cv.*\.pdf|curriculum.*vitae.*\.pdf/i,
+                // Must have resume/cv in document title or description
+                /title="[^"]*resume[^"]*"|title="[^"]*cv[^"]*"/i,
+                /alt="[^"]*resume[^"]*"|alt="[^"]*cv[^"]*"/i,
+                // Must have LinkedIn document URL with resume context
+                /document\/view\/\d+[^"]*resume|document\/view\/\d+[^"]*cv/i
               ].some(pattern => pattern.test(featuredHtml));
               
-              if (!hasActualDocuments) {
-                console.log('⚠️ Featured section validation failed - marking as no resume');
+              if (!hasActualResumeDocuments) {
+                console.log('⚠️ Featured section validation failed - no actual resume/CV documents found');
                 finalResult = false;
               } else {
-                console.log('✅ Featured section validation passed');
+                console.log('✅ Featured section validation passed - found actual resume/CV documents');
               }
+            } else {
+              console.log('⚠️ Could not access featured section for validation');
+              // If we can't validate, be conservative and mark as false
+              finalResult = false;
             }
           } catch (validationError) {
-            console.log('⚠️ Could not validate featured section, keeping original result');
-            // Keep original result if validation fails
+            console.log('⚠️ Validation error, marking as no resume:', validationError.message);
+            // If validation fails, be conservative and mark as false
+            finalResult = false;
           }
         }
 
@@ -339,100 +347,93 @@
 
     async checkProfileForResume(profileUrl) {
       try {
-        console.log(`Checking profile for resume: ${profileUrl}`);
+        console.log(`🔍 Checking profile for resume: ${profileUrl}`);
         
         const response = await fetch(profileUrl);
         if (!response.ok) {
-          console.log(`Failed to fetch profile: ${response.status}`);
+          console.log(`❌ Failed to fetch profile: ${response.status}`);
           return false;
         }
 
         const html = await response.text();
         
-        // 1. MOST RELIABLE: Check for actual LinkedIn document URLs
-        const linkedinDocumentUrls = [
-          /linkedin\.com\/document\/view\/[0-9]+/i,
-          /linkedin\.com\/document\/[0-9]+/i,
-          /document\/view\/\d+/i
+        // ULTRA STRICT: Only look for ACTUAL resume/CV documents
+        
+        // 1. HIGHEST PRIORITY: Direct LinkedIn document URLs with resume keywords
+        const resumeDocumentUrls = [
+          /linkedin\.com\/document\/view\/[0-9]+[^"]*resume/i,
+          /linkedin\.com\/document\/view\/[0-9]+[^"]*cv/i,
+          /linkedin\.com\/document\/view\/[0-9]+[^"]*curriculum/i,
+          /document\/view\/\d+[^"]*resume/i,
+          /document\/view\/\d+[^"]*cv/i
         ];
         
-        const hasLinkedInDocuments = linkedinDocumentUrls.some(pattern => pattern.test(html));
-        if (hasLinkedInDocuments) {
-          console.log('✅ Found LinkedIn document URLs');
+        const hasResumeDocumentUrls = resumeDocumentUrls.some(pattern => pattern.test(html));
+        if (hasResumeDocumentUrls) {
+          console.log('✅ Found LinkedIn document URLs with resume keywords');
           return true;
         }
         
-        // 2. SPECIFIC: Look for featured section with actual document indicators
-        const featuredSectionExists = html.includes('pv-featured-item') || html.includes('featured-item');
-        if (featuredSectionExists) {
-          // Look for specific document file types in featured section
-          const documentFileTypes = [
-            /\.pdf["'>]/i,
-            /\.doc["'>]/i,
-            /\.docx["'>]/i,
-            /application\/pdf/i,
-            /document.*type.*pdf/i
-          ];
-          
-          const hasDocumentFiles = documentFileTypes.some(pattern => pattern.test(html));
-          if (hasDocumentFiles) {
-            console.log('✅ Found document files in featured section');
-            return true;
-          }
-        }
-        
-        // 3. STRICTER: Check for actual resume/CV uploads (not just mentions)
-        const actualResumeIndicators = [
-          // Look for file names that contain resume/cv
-          /['"](.*resume.*\.pdf|.*cv.*\.pdf|.*curriculum.*vitae.*\.pdf)['"]/i,
-          // Media/document upload indicators
-          /uploaded.*document.*resume|resume.*uploaded.*document/i,
-          // Specific LinkedIn media markers for documents
-          /li-media.*document|document.*li-media/i,
-          // Document viewer indicators
-          /document.*viewer|viewer.*document/i
+        // 2. VERY STRICT: Look for actual file names with resume/CV
+        const actualResumeFiles = [
+          // Exact file patterns with resume/cv in filename
+          /["']([^"']*resume[^"']*\.pdf)["']/i,
+          /["']([^"']*cv[^"']*\.pdf)["']/i,
+          /["']([^"']*curriculum[^"']*vitae[^"']*\.pdf)["']/i,
+          // LinkedIn media with resume filename
+          /media.*["']([^"']*resume[^"']*\.pdf)["']/i,
+          /media.*["']([^"']*cv[^"']*\.pdf)["']/i
         ];
         
-        const hasActualResume = actualResumeIndicators.some(pattern => pattern.test(html));
-        if (hasActualResume) {
-          console.log('✅ Found actual resume upload indicators');
+        const hasResumeFiles = actualResumeFiles.some(pattern => pattern.test(html));
+        if (hasResumeFiles) {
+          console.log('✅ Found actual resume/CV files in filenames');
           return true;
         }
         
-        // 4. VERIFICATION: Check for download buttons with specific context
-        const specificDownloadPatterns = [
-          /download.*resume|resume.*download/i,
-          /download.*cv|cv.*download/i,
-          /view.*resume.*pdf|resume.*pdf.*view/i
+        // 3. STRICT: Resume/CV in document titles or descriptions
+        const resumeDocumentTitles = [
+          // Title attributes with resume/cv
+          /title="[^"]*resume[^"]*"/i,
+          /title="[^"]*cv[^"]*"/i,
+          /title="[^"]*curriculum[^"]*vitae[^"]*"/i,
+          // Alt text with resume/cv
+          /alt="[^"]*resume[^"]*"/i,
+          /alt="[^"]*cv[^"]*"/i,
+          // Document descriptions with resume/cv
+          /document[^>]*>[^<]*resume[^<]*</i,
+          /document[^>]*>[^<]*cv[^<]*</i
         ];
         
-        const hasSpecificDownloads = specificDownloadPatterns.some(pattern => pattern.test(html));
-        if (hasSpecificDownloads) {
-          console.log('✅ Found specific resume download patterns');
+        const hasResumeTitles = resumeDocumentTitles.some(pattern => pattern.test(html));
+        if (hasResumeTitles) {
+          console.log('✅ Found resume/CV in document titles or descriptions');
           return true;
         }
         
-        // 5. LAST RESORT: Very specific structural checks
-        const structuralChecks = [
-          // LinkedIn's specific document structure
-          /pv-featured-item.*document|document.*pv-featured-item/i,
-          // Actual file extension patterns in links
-          /href="[^"]*\.pdf"/i,
-          // LinkedIn media object with document
-          /media-object.*document.*resume|resume.*document.*media-object/i
+        // 4. ULTRA STRICT: Only specific download patterns with resume context
+        const strictDownloadPatterns = [
+          // Download buttons specifically for resume/cv
+          /download[^>]*>[^<]*resume[^<]*</i,
+          /download[^>]*>[^<]*cv[^<]*</i,
+          /href="[^"]*resume[^"]*\.pdf"/i,
+          /href="[^"]*cv[^"]*\.pdf"/i,
+          // View resume/cv patterns
+          /view[^>]*>[^<]*resume[^<]*</i,
+          /view[^>]*>[^<]*cv[^<]*</i
         ];
         
-        const hasStructuralEvidence = structuralChecks.some(pattern => pattern.test(html));
-        if (hasStructuralEvidence) {
-          console.log('✅ Found structural evidence of resume');
+        const hasStrictDownloads = strictDownloadPatterns.some(pattern => pattern.test(html));
+        if (hasStrictDownloads) {
+          console.log('✅ Found strict download patterns with resume context');
           return true;
         }
         
-        console.log('❌ No resume evidence found');
+        console.log('❌ No resume evidence found with strict criteria');
         return false;
         
       } catch (error) {
-        console.error('Error checking profile for resume:', error);
+        console.error('❌ Error checking profile for resume:', error);
         return false;
       }
     }
@@ -745,6 +746,11 @@
         console.error('❌ Error testing resume detection:', error);
         return false;
       }
+    },
+    testSpecificProfile: async function() {
+      console.log('🧪 Testing the specific profile mentioned by user...');
+      const testUrl = 'https://www.linkedin.com/in/yukta-gautam-1b594a182/';
+      return await this.testResumeDetection(testUrl);
     },
     clearCache: function() {
       if (!detector) {
