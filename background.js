@@ -27,7 +27,7 @@ function initializeContextMenu() {
         documentUrlPatterns: ['https://www.linkedin.com/search/results/people/*']
       }, () => {
         if (chrome.runtime.lastError) {
-          console.error('Context menu creation failed:', chrome.runtime.lastError);
+          console.error('Context menu creation failed:', chrome.runtime.lastError.message);
         } else {
           console.log('Context menu created successfully');
         }
@@ -105,7 +105,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
           action: 'toggleEnabled', 
           enabled: newState 
         }).catch(err => {
-          console.error('Error sending toggle message:', err);
+          console.error('Error sending toggle message:', err.message || err);
         });
       });
     });
@@ -116,7 +116,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 chrome.action.onClicked.addListener((tab) => {
   if (tab.url && tab.url.includes('linkedin.com/search/results/people/')) {
     chrome.tabs.sendMessage(tab.id, { action: 'refreshCheck' }).catch(err => {
-      console.error('Error sending refresh message:', err);
+      console.error('Error sending refresh message:', err.message || err);
     });
   }
 }); 
