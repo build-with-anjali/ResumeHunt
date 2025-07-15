@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
         
-        // Force inject the content script
+        // Method 1: Try direct injection
         chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: ['content.js']
@@ -111,10 +111,65 @@ document.addEventListener('DOMContentLoaded', function() {
             loadStatus(); // Reload status after injection
           }, 1000);
         }).catch(error => {
-          console.error('Error injecting content script:', error);
-          showNotification('Error injecting content script: ' + error.message);
-          forceReloadBtn.disabled = false;
-          forceReloadBtn.textContent = 'Force Reload';
+          console.error('Direct injection failed:', error);
+          
+          // Method 2: Try inline function injection
+          chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              // Test if we can access the page
+              console.log('=== FORCE RELOAD TESTING ===');
+              console.log('Current URL:', window.location.href);
+              console.log('Document title:', document.title);
+              console.log('Can access LinkedIn:', document.title.includes('LinkedIn'));
+              
+              // Check for ad blockers by testing if certain elements are blocked
+              const testDiv = document.createElement('div');
+              testDiv.className = 'ads advertisement banner';
+              testDiv.style.display = 'none';
+              document.body.appendChild(testDiv);
+              
+              setTimeout(() => {
+                const isBlocked = testDiv.offsetParent === null;
+                if (isBlocked) {
+                  console.log('⚠️  AD BLOCKER DETECTED - This may be blocking the content script');
+                } else {
+                  console.log('✅ No ad blocker interference detected');
+                }
+                document.body.removeChild(testDiv);
+              }, 100);
+              
+              // Try to manually load content script
+              if (!window.ResumeHuntDebug) {
+                console.log('Attempting to load content script manually...');
+                const script = document.createElement('script');
+                script.src = chrome.runtime.getURL('content.js');
+                script.onload = () => {
+                  console.log('✅ Content script loaded successfully!');
+                  console.log('ResumeHuntDebug available:', typeof window.ResumeHuntDebug !== 'undefined');
+                };
+                script.onerror = (e) => {
+                  console.error('❌ Content script failed to load:', e);
+                  console.log('This may be due to ad blocker interference');
+                };
+                document.head.appendChild(script);
+              } else {
+                console.log('✅ Content script already loaded');
+              }
+            }
+          }).then(() => {
+            showNotification('Force reload attempted - check console for results');
+            setTimeout(() => {
+              forceReloadBtn.disabled = false;
+              forceReloadBtn.textContent = 'Force Reload';
+              loadStatus(); // Reload status after injection
+            }, 2000);
+          }).catch(fallbackError => {
+            console.error('Both injection methods failed:', fallbackError);
+            showNotification('Force reload failed - check console for details');
+            forceReloadBtn.disabled = false;
+            forceReloadBtn.textContent = 'Force Reload';
+          });
         });
       } else {
         forceReloadBtn.disabled = false;

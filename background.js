@@ -89,15 +89,40 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (isLinkedInSearch) {
       console.log('LinkedIn search page detected, injecting content script:', tab.url);
       
-      // Inject content script if not already present
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).then(() => {
-        console.log('Content script injected successfully');
-      }).catch(err => {
-        console.log('Content script injection skipped (likely already present):', err.message);
-      });
+      // Try multiple injection methods to bypass ad blockers
+      setTimeout(() => {
+        // Method 1: Direct injection
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }).then(() => {
+          console.log('Content script injected successfully (Method 1)');
+        }).catch(err => {
+          console.log('Method 1 failed:', err.message);
+          
+          // Method 2: Inline code injection as fallback
+          chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: () => {
+              // Inject a simple test to see if scripts can run
+              console.log('=== TESTING CONTENT SCRIPT INJECTION ===');
+              console.log('URL:', window.location.href);
+              console.log('Can access LinkedIn page:', document.title.includes('LinkedIn'));
+              
+              // Try to load the main content script
+              const script = document.createElement('script');
+              script.src = chrome.runtime.getURL('content.js');
+              script.onload = () => console.log('Content script loaded via DOM injection');
+              script.onerror = (e) => console.error('Content script failed to load:', e);
+              document.head.appendChild(script);
+            }
+          }).then(() => {
+            console.log('Fallback injection method executed');
+          }).catch(err => {
+            console.error('Both injection methods failed:', err);
+          });
+        });
+      }, 1000); // Wait 1 second for page to fully load
     }
   }
 });

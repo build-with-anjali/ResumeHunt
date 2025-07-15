@@ -1,4 +1,11 @@
 // LinkedIn Resume Detector Content Script
+// Prevent multiple injections
+if (window.LinkedInResumeDetectorLoaded) {
+  console.log('LinkedIn Resume Detector: Already loaded, skipping initialization');
+  return;
+}
+window.LinkedInResumeDetectorLoaded = true;
+
 console.log('=== LinkedIn Resume Detector Content Script Loading ===');
 console.log('URL:', window.location.href);
 console.log('Document ready state:', document.readyState);
@@ -144,16 +151,64 @@ class LinkedInResumeDetector {
     if (this.isProcessing || !this.settings.enabled) return;
     this.isProcessing = true;
 
-    // Try multiple selectors for LinkedIn profile cards
-    const profileCards = document.querySelectorAll('.entity-result__item') || 
-                        document.querySelectorAll('.reusable-search__result-container') ||
-                        document.querySelectorAll('[data-chameleon-result-urn]') ||
-                        document.querySelectorAll('.search-result');
+    // Debug: Show what's actually on the page
+    console.log('=== DEBUGGING PROFILE CARD SELECTORS ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Page title:', document.title);
+    
+    // Try multiple selectors for LinkedIn profile cards (updated for 2024)
+    const selectorOptions = [
+      '.entity-result__item',                    // Common search result item
+      '.reusable-search__result-container',      // Older LinkedIn layout
+      '[data-chameleon-result-urn]',             // Data attribute selector
+      '.search-result',                          // Generic search result
+      '.search-results-container .artdeco-list__item', // Artdeco list items
+      '.search-result__wrapper',                 // Result wrapper
+      '.entity-result',                          // Entity result
+      '.search-entity-result',                   // Search entity result
+      '.org-people-profile-card',                // Organization people cards
+      '.search-results-container [data-test-id]', // Data test ID elements
+      '.search-results-container li',            // List items in search results
+      '.artdeco-list li'                         // Artdeco list items
+    ];
 
-    console.log(`LinkedIn Resume Detector: Found ${profileCards.length} profile cards`);
+    let profileCards = [];
+    let usedSelector = '';
+
+    // Try each selector until we find profile cards
+    for (const selector of selectorOptions) {
+      const elements = document.querySelectorAll(selector);
+      console.log(`Trying selector "${selector}": found ${elements.length} elements`);
+      
+      if (elements.length > 0) {
+        profileCards = elements;
+        usedSelector = selector;
+        break;
+      }
+    }
+
+    // If no specific selectors work, try to find any containers with profile links
+    if (profileCards.length === 0) {
+      console.log('No profile cards found with known selectors, trying fallback...');
+      const fallbackElements = document.querySelectorAll('*[href*="/in/"], *[href*="/search/results/people/"]');
+      if (fallbackElements.length > 0) {
+        // Get parent containers of profile links
+        const containers = new Set();
+        fallbackElements.forEach(el => {
+          let parent = el.closest('li') || el.closest('[data-test-id]') || el.closest('.artdeco-list__item');
+          if (parent) containers.add(parent);
+        });
+        profileCards = Array.from(containers);
+        usedSelector = 'fallback (parent containers of profile links)';
+      }
+    }
+
+    console.log(`LinkedIn Resume Detector: Found ${profileCards.length} profile cards using selector: ${usedSelector}`);
     
     if (profileCards.length === 0) {
-      console.log('LinkedIn Resume Detector: No profile cards found with current selectors');
+      console.log('LinkedIn Resume Detector: No profile cards found with any selectors');
+      console.log('Available elements on page:', document.querySelectorAll('*').length);
+      console.log('Search results container:', document.querySelector('.search-results-container') ? 'Found' : 'Not found');
       this.isProcessing = false;
       return;
     }
@@ -412,7 +467,29 @@ window.ResumeHuntDebug = {
     console.log('Is processing:', detector.isProcessing);
     console.log('Cache size:', detector.resumeCache.size);
     console.log('Checked profiles:', detector.checkedProfiles.size);
-    console.log('Found search results:', document.querySelectorAll('.reusable-search__result-container').length);
+    
+    // Check for profile cards with updated selectors
+    const selectorOptions = [
+      '.entity-result__item',
+      '.reusable-search__result-container',
+      '[data-chameleon-result-urn]',
+      '.search-result',
+      '.search-results-container .artdeco-list__item',
+      '.search-result__wrapper',
+      '.entity-result',
+      '.search-entity-result',
+      '.org-people-profile-card',
+      '.search-results-container [data-test-id]',
+      '.search-results-container li',
+      '.artdeco-list li'
+    ];
+    
+    console.log('Profile card selector results:');
+    selectorOptions.forEach(selector => {
+      const count = document.querySelectorAll(selector).length;
+      console.log(`  ${selector}: ${count} elements`);
+    });
+    
     console.log('=== End Debug Info ===');
     return detector;
   },
