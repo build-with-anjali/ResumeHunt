@@ -99,76 +99,148 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
         
-        // Method 1: Try direct injection
+        console.log('=== FORCE RELOAD DEBUGGING ===');
+        console.log('Tab URL:', currentUrl);
+        console.log('Tab ID:', tabs[0].id);
+        
+        // Method 1: Try direct file injection
         chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: ['content.js']
         }).then(() => {
+          console.log('✅ Method 1 (Direct file injection) - SUCCESS');
           showNotification('Content script injected successfully!');
           setTimeout(() => {
             forceReloadBtn.disabled = false;
             forceReloadBtn.textContent = 'Force Reload';
-            loadStatus(); // Reload status after injection
+            loadStatus();
           }, 1000);
         }).catch(error => {
-          console.error('Direct injection failed:', error);
+          console.error('❌ Method 1 (Direct file injection) - FAILED:', error);
           
-          // Method 2: Try inline function injection
+          // Method 2: Try inline code injection with embedded script
           chrome.scripting.executeScript({
             target: { tabId: tabs[0].id },
-            func: () => {
-              // Test if we can access the page
-              console.log('=== FORCE RELOAD TESTING ===');
+            func: function() {
+              console.log('=== INLINE INJECTION TESTING ===');
               console.log('Current URL:', window.location.href);
               console.log('Document title:', document.title);
-              console.log('Can access LinkedIn:', document.title.includes('LinkedIn'));
+              console.log('Page loaded:', document.readyState);
               
-              // Check for ad blockers by testing if certain elements are blocked
-              const testDiv = document.createElement('div');
-              testDiv.className = 'ads advertisement banner';
-              testDiv.style.display = 'none';
-              document.body.appendChild(testDiv);
+              // Check for existing script
+              if (window.LinkedInResumeDetectorLoaded) {
+                console.log('✅ Content script already loaded');
+                return { success: true, message: 'Already loaded' };
+              }
               
-              setTimeout(() => {
-                const isBlocked = testDiv.offsetParent === null;
-                if (isBlocked) {
-                  console.log('⚠️  AD BLOCKER DETECTED - This may be blocking the content script');
-                } else {
-                  console.log('✅ No ad blocker interference detected');
-                }
-                document.body.removeChild(testDiv);
-              }, 100);
+              // Check for CSP blocking
+              const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+              if (cspMeta) {
+                console.log('⚠️ CSP detected:', cspMeta.content);
+              }
               
-              // Try to manually load content script
-              if (!window.ResumeHuntDebug) {
-                console.log('Attempting to load content script manually...');
+              // Test if we can create and execute scripts
+              try {
+                const testScript = document.createElement('script');
+                testScript.textContent = 'console.log("✅ Script execution test passed");';
+                document.head.appendChild(testScript);
+                document.head.removeChild(testScript);
+                console.log('✅ Script execution allowed');
+              } catch (e) {
+                console.error('❌ Script execution blocked:', e);
+                return { success: false, message: 'Script execution blocked' };
+              }
+              
+              // Try to load content script via URL
+              try {
                 const script = document.createElement('script');
                 script.src = chrome.runtime.getURL('content.js');
-                script.onload = () => {
-                  console.log('✅ Content script loaded successfully!');
-                  console.log('ResumeHuntDebug available:', typeof window.ResumeHuntDebug !== 'undefined');
+                script.onload = function() {
+                  console.log('✅ Content script loaded via URL');
                 };
-                script.onerror = (e) => {
-                  console.error('❌ Content script failed to load:', e);
-                  console.log('This may be due to ad blocker interference');
+                script.onerror = function(e) {
+                  console.error('❌ Content script URL load failed:', e);
                 };
                 document.head.appendChild(script);
-              } else {
-                console.log('✅ Content script already loaded');
+                return { success: true, message: 'Script injection attempted' };
+              } catch (e) {
+                console.error('❌ Script URL injection failed:', e);
+                return { success: false, message: 'URL injection failed' };
               }
             }
-          }).then(() => {
-            showNotification('Force reload attempted - check console for results');
+          }).then((results) => {
+            const result = results[0]?.result;
+            console.log('Method 2 result:', result);
+            
+            if (result?.success) {
+              showNotification('Content script injection attempted - check console');
+            } else {
+              showNotification('Content script injection failed: ' + (result?.message || 'Unknown error'));
+            }
+            
             setTimeout(() => {
               forceReloadBtn.disabled = false;
               forceReloadBtn.textContent = 'Force Reload';
-              loadStatus(); // Reload status after injection
+              loadStatus();
             }, 2000);
           }).catch(fallbackError => {
-            console.error('Both injection methods failed:', fallbackError);
-            showNotification('Force reload failed - check console for details');
-            forceReloadBtn.disabled = false;
-            forceReloadBtn.textContent = 'Force Reload';
+            console.error('❌ Method 2 (Inline injection) - FAILED:', fallbackError);
+            
+            // Method 3: Try direct code injection
+            chrome.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              func: function() {
+                // Embed the minimal content script directly
+                if (window.LinkedInResumeDetectorLoaded) {
+                  console.log('Content script already loaded');
+                  return;
+                }
+                
+                console.log('=== DIRECT CODE INJECTION ===');
+                window.LinkedInResumeDetectorLoaded = true;
+                
+                // Create a minimal detector
+                window.ResumeHuntDebug = {
+                  debugInfo: function() {
+                    console.log('=== Minimal Debug Info ===');
+                    console.log('URL:', window.location.href);
+                    console.log('Title:', document.title);
+                    console.log('Content script: Injected via Method 3');
+                    
+                    // Test profile card detection
+                    const selectors = [
+                      '.entity-result__item',
+                      '.search-results-container li',
+                      '.artdeco-list li',
+                      '[data-chameleon-result-urn]'
+                    ];
+                    
+                    selectors.forEach(sel => {
+                      const count = document.querySelectorAll(sel).length;
+                      console.log(`${sel}: ${count} elements`);
+                    });
+                    
+                    console.log('=== End Debug Info ===');
+                  }
+                };
+                
+                console.log('✅ Minimal content script injected');
+                console.log('Try: ResumeHuntDebug.debugInfo()');
+              }
+            }).then(() => {
+              console.log('✅ Method 3 (Direct code injection) - SUCCESS');
+              showNotification('Minimal content script injected - try ResumeHuntDebug.debugInfo()');
+              setTimeout(() => {
+                forceReloadBtn.disabled = false;
+                forceReloadBtn.textContent = 'Force Reload';
+                loadStatus();
+              }, 1000);
+            }).catch(finalError => {
+              console.error('❌ All injection methods failed:', finalError);
+              showNotification('All injection methods failed - check console');
+              forceReloadBtn.disabled = false;
+              forceReloadBtn.textContent = 'Force Reload';
+            });
           });
         });
       } else {
